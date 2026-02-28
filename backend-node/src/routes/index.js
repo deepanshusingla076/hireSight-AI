@@ -10,8 +10,8 @@ router.use('/health', healthRoutes);
 // Resume upload route
 router.use('/upload-resume', resumeRoutes);
 
-// AI-powered analysis routes
-router.use('/api', analysisRoutes);
+// AI-powered analysis routes (mounted at root so outer '/api' prefix applies once)
+router.use('/', analysisRoutes);
 
 // Welcome route
 router.get('/', (req, res) => {

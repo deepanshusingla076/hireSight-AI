@@ -10,6 +10,14 @@ from app.services.resume_parser import resume_parser
 from app.services.skill_extractor import skill_extractor
 from app.services.matcher import matcher
 from app.services.gemini_service import gemini_service
+from app.utils.dataset_utils import (
+    get_random_job_description,
+    get_job_description_by_title,
+    search_jobs_by_keywords,
+    get_dataset_stats,
+    get_resume_categories,
+    get_sample_resumes_by_category
+)
 
 # Create FastAPI app
 app = FastAPI(
@@ -613,6 +621,207 @@ async def generate_interview_questions(request: InterviewQuestionsRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Error generating questions: {str(e)}"
+        )
+
+
+# ============================================================================
+# DATASET ENDPOINTS - Access to job descriptions and sample resumes
+# ============================================================================
+
+@app.get("/dataset/stats")
+async def get_dataset_statistics():
+    """
+    Get statistics about the available dataset.
+    
+    Returns:
+        - total_job_descriptions: Number of job descriptions
+        - total_resume_data: Number of resume records
+        - categories: Number of job categories
+        - resumes_by_category: Count of resumes per category
+    """
+    try:
+        stats = get_dataset_stats()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Dataset statistics retrieved",
+                "data": stats
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving stats: {str(e)}"
+        )
+
+
+@app.get("/dataset/random-job")
+async def get_random_job():
+    """
+    Get a random job description from the dataset.
+    
+    Returns:
+        - job_title: The job title
+        - job_description: Full job description
+    """
+    try:
+        job = get_random_job_description()
+        if not job['job_title']:
+            raise HTTPException(
+                status_code=404,
+                detail="No job descriptions found in dataset"
+            )
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Random job description retrieved",
+                "data": job
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving job: {str(e)}"
+        )
+
+
+class JobSearchRequest(BaseModel):
+    keywords: List[str]
+    limit: int = 10
+
+
+@app.post("/dataset/search-jobs")
+async def search_jobs(request: JobSearchRequest):
+    """
+    Search for jobs by keywords.
+    
+    Request body:
+        - keywords: List of keywords to search for
+        - limit: Maximum number of results (default: 10)
+    
+    Returns:
+        List of matching job descriptions
+    """
+    try:
+        jobs = search_jobs_by_keywords(request.keywords, request.limit)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": f"Found {len(jobs)} matching jobs",
+                "data": {
+                    "jobs": jobs,
+                    "count": len(jobs)
+                }
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error searching jobs: {str(e)}"
+        )
+
+
+@app.get("/dataset/job-by-title/{title}")
+async def get_job_by_title(title: str):
+    """
+    Get job description by title.
+    
+    Args:
+        title: Job title to search for (case-insensitive)
+    
+    Returns:
+        Matching job description
+    """
+    try:
+        job = get_job_description_by_title(title)
+        if not job['job_title']:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No job found matching title: {title}"
+            )
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Job description found",
+                "data": job
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving job: {str(e)}"
+        )
+
+
+@app.get("/dataset/categories")
+async def get_categories():
+    """
+    Get list of available resume categories.
+    
+    Returns:
+        List of category names
+    """
+    try:
+        categories = get_resume_categories()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Categories retrieved",
+                "data": {
+                    "categories": categories,
+                    "count": len(categories)
+                }
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving categories: {str(e)}"
+        )
+
+
+@app.get("/dataset/resumes/{category}")
+async def get_resumes_by_category(category: str):
+    """
+    Get list of sample resumes for a specific category.
+    
+    Args:
+        category: Job category (e.g., 'ENGINEERING', 'INFORMATION-TECHNOLOGY')
+    
+    Returns:
+        List of resume file paths
+    """
+    try:
+        category = category.upper()
+        resumes = get_sample_resumes_by_category(category)
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": f"Found {len(resumes)} resumes in {category}",
+                "data": {
+                    "category": category,
+                    "resumes": resumes,
+                    "count": len(resumes)
+                }
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving resumes: {str(e)}"
         )
 
 

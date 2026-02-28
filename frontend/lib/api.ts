@@ -51,13 +51,35 @@ export const analyzeResume = async (
   formData.append('resume', file);
   formData.append('jobDescription', jobDescription);
 
-  const response = await api.post('/api/analyze', formData, {
+  const response = await api.post('http://localhost:5000/api/analyze', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
 
-  return response.data;
+  // Normalize backend response to frontend AnalysisResult shape
+  const payload = response.data && response.data.data ? response.data.data : {};
+
+  const normalized: AnalysisResult = {
+    success: response.data.success,
+    message: response.data.message,
+    data: {
+      resumeText: payload.resume?.text || '',
+      extractedSkills: payload.skills?.extracted || [],
+      matchScore: payload.match?.score || 0,
+      matchedSkills: payload.match?.matched_skills || [],
+      missingSkills: payload.match?.missing_skills || [],
+      aiInsights: payload.ai_analysis || {
+        fitScore: 0,
+        strengths: [],
+        areasForImprovement: [],
+        recommendations: []
+      },
+      questions: payload.questions || []
+    }
+  };
+
+  return normalized;
 };
 
 // Process resume (parse + extract skills)
@@ -65,13 +87,27 @@ export const processResume = async (file: File): Promise<AnalysisResult> => {
   const formData = new FormData();
   formData.append('resume', file);
 
-  const response = await api.post('/api/process-resume', formData, {
+  const response = await api.post('http://localhost:5000/api/process-resume', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
 
-  return response.data;
+  const payload = response.data && response.data.data ? response.data.data : {};
+
+  return {
+    success: response.data.success,
+    message: response.data.message,
+    data: {
+      resumeText: payload.resume?.text || '',
+      extractedSkills: payload.skills?.extracted || [],
+      matchScore: payload.match?.score || 0,
+      matchedSkills: payload.match?.matched_skills || [],
+      missingSkills: payload.match?.missing_skills || [],
+      aiInsights: payload.ai_analysis || null,
+      questions: payload.questions || []
+    }
+  };
 };
 
 // Match resume to job
@@ -79,12 +115,26 @@ export const matchJob = async (
   resumeSkills: string[],
   jobRequirements: string
 ): Promise<AnalysisResult> => {
-  const response = await api.post('/api/match-job', {
+  const response = await api.post('http://localhost:5000/api/match-job', {
     resumeSkills,
     jobRequirements,
   });
 
-  return response.data;
+  const payload = response.data && response.data.data ? response.data.data : {};
+
+  return {
+    success: response.data.success,
+    message: response.data.message,
+    data: {
+      resumeText: payload.resume?.text || '',
+      extractedSkills: payload.skills?.extracted || [],
+      matchScore: payload.match?.score || 0,
+      matchedSkills: payload.match?.matched_skills || [],
+      missingSkills: payload.match?.missing_skills || [],
+      aiInsights: payload.ai_analysis || null,
+      questions: payload.questions || []
+    }
+  };
 };
 
 // Get AI insights
@@ -94,7 +144,7 @@ export const getAIInsights = async (
   matchedSkills: string[],
   missingSkills: string[]
 ): Promise<AnalysisResult> => {
-  const response = await api.post('/api/ai-insights', {
+  const response = await api.post('http://localhost:5000/api/ai-insights', {
     resumeText,
     jobDescription,
     matchedSkills,
@@ -110,7 +160,7 @@ export const generateInterviewQuestions = async (
   jobDescription: string,
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
 ): Promise<AnalysisResult> => {
-  const response = await api.post('/api/interview-questions', {
+  const response = await api.post('http://localhost:5000/api/interview-questions', {
     resumeText,
     jobDescription,
     difficulty,
@@ -124,7 +174,7 @@ export const getSkillGap = async (
   currentSkills: string[],
   targetSkills: string[]
 ): Promise<SkillGapResult> => {
-  const response = await api.post('/api/skill-gap', {
+  const response = await api.post('http://localhost:5000/api/skill-gap', {
     currentSkills,
     targetSkills,
   });
@@ -137,7 +187,7 @@ export const batchMatchJobs = async (
   resumeSkills: string[],
   jobListings: Array<{ title: string; requirements: string }>
 ): Promise<AnalysisResult> => {
-  const response = await api.post('/api/batch-match', {
+  const response = await api.post('http://localhost:5000/api/batch-match', {
     resumeSkills,
     jobListings,
   });
